@@ -162,7 +162,7 @@ export function createRobot(palette: RobotPalette): Robot {
     },
     update(t, dt, look) {
       const P = POSES[pose];
-      const k = 1 - Math.exp(-dt * 5);
+      const k = 1 - Math.exp(-dt * 3.4); // arms settle with the body move, not before it
       const wave = pose === 'wave' ? Math.sin(t * 7) * 0.45 : 0;
       const nod = pose === 'present' || pose === 'point' ? Math.sin(t * 1.6) * 0.04 : 0;
 

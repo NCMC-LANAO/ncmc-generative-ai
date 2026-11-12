@@ -39,6 +39,9 @@ const FOV = 38;
 const DESIGN_ASPECT = 1.6;
 const DESIGN_HALF_W = Math.tan((FOV * Math.PI) / 360) * CAMERA_Z * DESIGN_ASPECT;
 const MAX_DPR = 1.5;
+/** One fixed-length, eased move between slides (no long exponential tail). */
+const MOVE_SECONDS = 1.15;
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 /** Average frame time (s) above which we drop to low-effects mode. */
 const SLOW_FRAME = 0.027;
 
@@ -78,6 +81,9 @@ export class SceneController {
   private ro: ResizeObserver;
   private textures: CanvasTexture[] = [];
   private pmrem: PMREMGenerator;
+  private tweenT = 1;
+  private from = { x: 0, y: 0, s: 1, ry: 0 };
+  private dtLast = 0.016;
   private lowfx = false;
   private frames = 0;
   private perfAcc = 0;
@@ -179,6 +185,8 @@ export class SceneController {
 
   morphTo(t: SceneTarget) {
     this.target = t;
+    this.from = { ...this.main.cur };
+    this.tweenT = this.reduced ? 1 : 0;
     this.main.robot.setPose(t.pose);
     this.buddy.robot.setPose(t.pose === 'wave' ? 'idle' : 'wave');
     if (this.reduced) this.snap();
@@ -228,7 +236,7 @@ export class SceneController {
 
     const b = this.buddy;
     const want = this.target.companion && !this.portrait ? p.s * 0.52 : 0;
-    b.cur.s += (want - b.cur.s) * (this.reduced ? 1 : 0.08);
+    b.cur.s += (want - b.cur.s) * (this.reduced ? 1 : 1 - Math.exp(-this.dtLast * 5));
     b.holder.visible = b.cur.s > 0.01;
     b.cur.x = m.cur.x + (m.cur.x >= 0 ? -2.2 : 2.2) * p.s;
     b.cur.y = m.cur.y - 0.95 * p.s;
@@ -268,13 +276,16 @@ export class SceneController {
       }
     }
 
+    this.dtLast = dt;
     const p = this.placement();
-    const f = 1 - Math.exp(-dt * 2.6);
     const c = this.main.cur;
-    c.x += (p.x - c.x) * f;
-    c.y += (p.y - c.y) * f;
-    c.s += (p.s - c.s) * f;
-    c.ry += (p.ry - c.ry) * f;
+    if (this.tweenT < 1) this.tweenT = Math.min(1, this.tweenT + dt / MOVE_SECONDS);
+    const e = easeInOutCubic(this.tweenT); // reaches exactly 1, then tracks the placement (e.g. on resize)
+    const f = this.from;
+    c.x = f.x + (p.x - f.x) * e;
+    c.y = f.y + (p.y - f.y) * e;
+    c.s = f.s + (p.s - f.s) * e;
+    c.ry = f.ry + (p.ry - f.ry) * e;
     this.apply();
 
     const pt = this.pointer;
