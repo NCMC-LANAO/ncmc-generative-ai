@@ -332,3 +332,75 @@ kbd { font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border: 
 
 .eq-main dl { gap: var(--s6) var(--s5); align-content: start; }
 .eq-main dd { font-size: 1.1rem; }
+
+/* ───────────── Fit: tall slides scroll, short screens tighten ───────────── */
+.slide { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+.slide:focus { outline: none; }
+
+@media (max-height: 820px) and (min-width: 901px) {
+  :root { --chrome-h: 60px; }
+  .slide { padding-block: calc(var(--chrome-h) + var(--s2)); }
+  .display { font-size: clamp(2.75rem, min(7.2vw, 12vh), 7.25rem); }
+  .display.md { font-size: clamp(2rem, min(4.2vw, 6.5vh), 4rem); }
+  .display.sm { font-size: clamp(1.9rem, min(3.5vw, 6vh), 3.4rem); }
+  .kicker { margin-bottom: var(--s4); }
+  .lede, .statement { margin-top: var(--s4); }
+  .index, .points, .problems, .tool-grid, .eq-grid, .inv, .modal-grid { margin-top: var(--s5); }
+  .flow, .meta { margin-top: var(--s6); }
+  .index button { min-height: 48px; padding-block: var(--s2); }
+  .points li { padding-block: var(--s3); }
+  .problems li { min-height: 52px; padding-block: var(--s2); }
+  .inv li { min-height: 46px; padding-block: var(--s2); }
+  .tool { min-height: 0; padding: var(--s4); gap: var(--s3); }
+  .tool-grid { gap: var(--s3); }
+  .eq { padding: var(--s4); }
+  .eq-main dl { gap: var(--s4) var(--s5); }
+  .tile { min-height: 84px; }
+  .flow .ic { width: 72px; height: 72px; }
+  .flow svg { width: 44px; height: 44px; }
+}
+@media (max-height: 640px) and (min-width: 901px) {
+  .tool p, .eq dd { font-size: 0.875rem; }
+  .tool-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Auto low-effects mode (set by SceneController when frames run slow): no blur over the canvas */
+.deck[data-lowfx='true'] .tool, .deck[data-lowfx='true'] .eq, .deck[data-lowfx='true'] .tile,
+.deck[data-lowfx='true'] .flow .ic, .deck[data-lowfx='true'] .chip, .deck[data-lowfx='true'] .icon-btn {
+  backdrop-filter: none;
+}
+.deck[data-lowfx='true'] .tool, .deck[data-lowfx='true'] .eq, .deck[data-lowfx='true'] .tile, .deck[data-lowfx='true'] .flow .ic {
+  background: rgb(13 31 63 / 0.85);
+}
+
+/* ───────────── Flow: plain-language hover cards ───────────── */
+.flow { --ic: 88px; }
+.flow li { cursor: help; outline-offset: 6px; }
+.flow li .n, .flow li .t { transition: opacity var(--t-fast); }
+.flow .tip {
+  position: absolute; z-index: 6; left: 0; top: calc(var(--s5) + var(--ic) + var(--s3));
+  width: max(100%, 232px); padding: var(--s3) var(--s4);
+  border: 1px solid var(--accent); border-radius: 12px;
+  background: rgb(9 22 48 / 0.97); box-shadow: 0 12px 32px rgb(0 0 0 / 0.4);
+  font-size: 0.875rem; line-height: 1.45; font-weight: 400; color: var(--ink-2);
+  opacity: 0; transform: translateY(6px); pointer-events: none;
+  transition: opacity 220ms var(--ease), transform 320ms var(--ease);
+}
+.flow .tip strong { display: block; margin-bottom: var(--s1); font-size: 0.8125rem; font-weight: 600; color: var(--ink); }
+.flow li:last-child .tip { left: auto; right: 0; }
+.flow li:hover, .flow li:focus, .flow li:focus-within { z-index: 6; }
+.flow li:hover .tip, .flow li:focus .tip { opacity: 1; transform: none; }
+.flow li:hover .n, .flow li:hover .t, .flow li:focus .n, .flow li:focus .t { opacity: 0; }
+.sub-hint { text-transform: none; letter-spacing: 0.02em; color: var(--ink-3); }
+
+@media (max-height: 820px) and (min-width: 901px) { .flow { --ic: 72px; } }
+@media (max-width: 900px) {
+  .flow .tip { position: static; width: auto; margin-top: var(--s2); display: none; }
+  .flow li:hover .tip, .flow li:focus .tip { display: block; opacity: 1; transform: none; }
+  .flow li:hover .n, .flow li:hover .t, .flow li:focus .n, .flow li:focus .t { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .flow .tip { transition-duration: 1ms; transform: none; } }
+
+.example { margin: var(--s4) 0 0; padding-left: var(--s4); border-left: 2px solid var(--accent); font-size: 0.9375rem; line-height: 1.5; color: var(--ink-2); max-width: 52ch; }
+.statement { font-size: clamp(1.2rem, 1.75vw, 1.6rem); }
+@media (max-height: 820px) and (min-width: 901px) { .example { margin-top: var(--s3); } .modal-grid { margin-top: var(--s4); } }

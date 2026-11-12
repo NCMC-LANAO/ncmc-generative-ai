@@ -62,9 +62,10 @@ function Statement({ s }: { s: StatementSlide }) {
       <p className="kicker rv" style={rv(0)}>{s.kicker}</p>
       <Headline lines={s.lines} size="md" start={1} />
       <p className="statement rv" style={rv(3)}>{s.body}</p>
+      {s.example && <p className="example rv" style={rv(4)}>{s.example}</p>}
       <ul className="modal-grid">
         {s.modalities.map((m, i) => (
-          <li key={m.label} className="tile rv" style={rv(4 + i)}>
+          <li key={m.label} className="tile rv" style={rv(5 + i)}>
             <ModalityIcon name={m.icon} />
             {m.label}
           </li>
@@ -79,13 +80,17 @@ function Flow({ s }: { s: FlowSlide }) {
     <div className="slide-inner">
       <p className="kicker rv" style={rv(0)}>{s.kicker}</p>
       <Headline lines={s.lines} size="sm" start={1} />
-      <p className="sub rv" style={rv(3)}>{s.sub}</p>
+      <p className="sub rv" style={rv(3)}>{s.sub}<span className="sub-hint"> · Hover or tap a step to see what it means</span></p>
       <ol className="flow">
         {s.steps.map((st, i) => (
-          <li key={st.label} className="rv" style={rv(4 + i)}>
+          <li key={st.label} className="rv" style={rv(4 + i)} tabIndex={0} aria-describedby={`step-tip-${i}`}>
             <div className="ic"><StepGlyph name={st.icon} /></div>
             <span className="n">{two(i + 1)}</span>
             <span className="t">{st.label}</span>
+            <span className="tip" role="tooltip" id={`step-tip-${i}`}>
+              <strong>{st.label}</strong>
+              {st.hint}
+            </span>
           </li>
         ))}
       </ol>
@@ -161,7 +166,7 @@ function Software({ s }: { s: SoftwareSlide }) {
   const half = Math.ceil(s.items.length / 2);
   const cols = [s.items.slice(0, half), s.items.slice(half)];
   return (
-    <div className="slide-inner">
+    <div className="slide-inner">  
       <p className="kicker rv" style={rv(0)}>{s.kicker}</p>
       <Headline lines={s.lines} size="sm" start={1} />
       <div className="inv">

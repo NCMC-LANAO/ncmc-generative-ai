@@ -1,43 +1,64 @@
-# Astro Starter Kit: Minimal
+# Generative AI: presentation site
+
+Interactive slide deck for the TESDA Generative AI program at North Central Mindanao College.
+Astro + React (one island) + Three.js. Fully static, no backend, works offline once built.
+
+## Run
+
+Requires **Node 22.23.4 or newer**.
 
 ```sh
-npm create astro@latest -- --template minimal
+npm install
+npm run dev        # http://localhost:4321
+npm run build      # static site in ./dist
+npm run preview    # serve ./dist locally
+npx astro check    # type-check
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Presenting
 
-## 🚀 Project Structure
+| Key | Action |
+| :-- | :----- |
+| `→` `↓` `PageDown` `Space` | Next slide |
+| `←` `↑` `PageUp` | Previous slide |
+| `Home` / `End` | First / last slide |
+| `O` | Slide overview |
+| `F` | Fullscreen |
 
-Inside of your Astro project, you'll see the following folders and files:
+Each slide has a deep link, e.g. `/#software`. Swipe works on touch screens.
+
+## Editing content
+
+All slide text lives in [`src/data/deck.ts`](src/data/deck.ts). To add a slide, add an object to the
+`slides` array. The agenda, progress rail, overview and links update automatically.
+
+- `layout` picks the template (`title`, `agenda`, `statement`, `flow`, `problems`, `divider`, `sector`, `tools`, `software`, `equipment`, `closing`). Templates are in [`src/components/deck/SlideViews.tsx`](src/components/deck/SlideViews.tsx).
+- `stage` places the 3D robot (`x`, `y`, `scale`, `ry`, `pose`, `companion`).
+- Wrap a word in `*asterisks*` to show it in the accent colour.
+- Set `presenter` in `deckMeta` to show a presenter name on the title slide.
+- Tool logos are SVG files in [`public/logos/`](public/logos/). Logos are trademarks of their owners.
+
+## Structure
 
 ```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+src/
+  data/deck.ts              all content
+  components/deck/          Deck shell (navigation, chrome, overview) and slide templates
+  lib/scene/                Three.js scene: SceneController (render loop, placement) and robot (procedural model)
+  styles/global.css         design tokens and all styles
+  pages/index.astro         page shell, loads fonts
+public/logos/               brand marks
+design-system/              design notes (reference only)
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Performance and accessibility notes
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+- Three.js is code-split and loaded after first paint. If frames run slow, the scene drops to a low-effects mode automatically (1x pixel ratio, no backdrop blur).
+- Honours `prefers-reduced-motion`. Falls back to a gradient if WebGL is unavailable or lost.
+- Inactive slides are `inert`; focus moves to the active slide on change; the overview is a focus-trapped dialog.
 
-Any static assets, like images, can be placed in the `public/` directory.
+## Deploying
 
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+`dist/` is plain static files and can go to any static host. The site expects to be served from the
+domain root. For a sub-path (e.g. GitHub Pages project site) set `site` and `base` in
+`astro.config.mjs` and prefix the `/logos/...` URLs in `SlideViews.tsx` with `import.meta.env.BASE_URL`.

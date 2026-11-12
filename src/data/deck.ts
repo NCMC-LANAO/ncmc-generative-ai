@@ -51,6 +51,7 @@ export interface StatementSlide extends Base {
   kicker: string;
   lines: string[];
   body: string;
+  example?: string;
   modalities: { icon: IconName; label: string }[];
 }
 export interface FlowSlide extends Base {
@@ -58,7 +59,7 @@ export interface FlowSlide extends Base {
   kicker: string;
   lines: string[];
   sub: string;
-  steps: { icon: StepIcon; label: string }[];
+  steps: { icon: StepIcon; label: string; hint: string }[];
 }
 export interface ProblemsSlide extends Base {
   layout: 'problems';
@@ -148,7 +149,7 @@ export const slides: Slide[] = [
     kicker: '01 — Definition',
     lines: ['Generative', '*AI*'],
     body:
-      'Generative AI is a type of artificial intelligence that can create new content based on patterns learned from existing data.',
+      'Generative AI is a type of artificial intelligence that learns from existing information and uses it to create something new.',
     modalities: [
       { icon: 'text', label: 'Text' },
       { icon: 'image', label: 'Image' },
@@ -165,11 +166,21 @@ export const slides: Slide[] = [
     lines: ['How does', '*Generative AI work?*'],
     sub: 'Generative AI workflow',
     steps: [
-      { icon: 'collect', label: 'Input data collection' },
-      { icon: 'train', label: 'AI models training' },
-      { icon: 'distribute', label: 'Data distribution' },
-      { icon: 'generate', label: 'New output generation' },
-      { icon: 'refine', label: 'Feedback refinement' },
+      { icon: 'collect', label: 'Input data collection',
+        hint: 'The AI first gathers a huge number of examples: books, websites, images and audio. Like a student collecting study materials.',
+      },
+      { icon: 'train', label: 'AI models training',
+        hint: 'It studies those examples and learns the patterns: how sentences flow and what things look like. Like practicing until it gets good.',
+      },
+      { icon: 'distribute', label: 'Data distribution',
+        hint: 'What it learned is spread across a network of connections, a bit like a brain, so it knows how ideas relate to each other.',
+      },
+      { icon: 'generate', label: 'New output generation',
+        hint: 'You ask for something (a prompt). The AI uses what it learned to create something new: text, an image, audio or code.',
+      },
+      { icon: 'refine', label: 'Feedback refinement',
+        hint: 'People rate and correct the results, and the AI uses that feedback to improve. Like a teacher marking your work.',
+      },
     ],
   },
   {

@@ -9,7 +9,6 @@ import {
   HemisphereLight,
   Mesh,
   MeshBasicMaterial,
-  PCFShadowMap,
   PMREMGenerator,
   PerspectiveCamera,
   PointLight,
@@ -36,6 +35,12 @@ export interface SceneTarget {
 
 const CAMERA_Z = 9;
 const FOV = 38;
+/** Stage positions in deck.ts were authored for a 16:10 screen; they are rescaled to the real aspect. */
+const DESIGN_ASPECT = 1.6;
+const DESIGN_HALF_W = Math.tan((FOV * Math.PI) / 360) * CAMERA_Z * DESIGN_ASPECT;
+const MAX_DPR = 1.5;
+/** Average frame time (s) above which we drop to low-effects mode. */
+const SLOW_FRAME = 0.027;
 
 function radialTexture(stops: [number, string][]) {
   const c = document.createElement('canvas');
@@ -73,18 +78,30 @@ export class SceneController {
   private ro: ResizeObserver;
   private textures: CanvasTexture[] = [];
   private pmrem: PMREMGenerator;
+  private lowfx = false;
+  private frames = 0;
+  private perfAcc = 0;
+  private perfN = 0;
   private onVisibility = () => {
     this.last = performance.now();
   };
+  private onContextLost = (e: Event) => {
+    e.preventDefault();
+    cancelAnimationFrame(this.raf);
+    this.onLost?.();
+  };
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    private onLost?: () => void,
+  ) {
     this.reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
-    this.renderer.shadowMap.type = PCFShadowMap;
+    canvas.addEventListener('webglcontextlost', this.onContextLost);
 
     // Image-based light from a procedural studio: glossy materials with no asset downloads.
     this.pmrem = new PMREMGenerator(this.renderer);
@@ -175,9 +192,25 @@ export class SceneController {
   private placement() {
     const t = this.target;
     // phones: robot becomes a quiet backdrop centred above the copy
-    return this.portrait
-      ? { x: 0, y: 2.1, s: t.companion ? t.scale * 0.55 : 0.0001, ry: t.ry * 0.4 }
-      : { x: t.x, y: t.y, s: t.scale, ry: t.ry };
+    if (this.portrait) return { x: 0, y: 2.1, s: t.companion ? t.scale * 0.55 : 0.0001, ry: t.ry * 0.4 };
+
+    // Rescale the authored position to the real aspect, shrink on squarer screens,
+    // and keep the whole robot (arms included) inside the frame.
+    const aspect = this.camera.aspect;
+    const halfW = Math.tan((FOV * Math.PI) / 360) * this.camera.position.z * aspect;
+    const fit = Math.min(1, Math.max(0.7, aspect / DESIGN_ASPECT));
+    const s = t.scale * fit;
+    const x = (t.x / DESIGN_HALF_W) * halfW;
+    const reach = 1.25 * s + 0.35;
+    const limit = Math.max(halfW - reach, 0);
+    return { x: Math.sign(x) * Math.min(Math.abs(x), limit), y: t.y, s, ry: t.ry };
+  }
+
+  private enableLowFx() {
+    this.lowfx = true;
+    this.resize();
+    // lets CSS drop expensive backdrop blurs over the canvas
+    this.canvas.closest('.deck')?.setAttribute('data-lowfx', 'true');
   }
 
   private snap() {
@@ -208,7 +241,7 @@ export class SceneController {
     const host = this.canvas.parentElement ?? this.canvas;
     const w = host.clientWidth || innerWidth;
     const h = host.clientHeight || innerHeight;
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(this.lowfx ? 1 : Math.min(devicePixelRatio || 1, MAX_DPR));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.portrait = w / h < 0.85;
@@ -220,9 +253,20 @@ export class SceneController {
   private tick = (now: number) => {
     if (this.disposed) return;
     this.raf = requestAnimationFrame(this.tick);
-    const dt = Math.min((now - this.last) / 1000, 0.05);
+    const raw = (now - this.last) / 1000;
+    const dt = Math.min(raw, 0.05);
     this.last = now;
     if (!this.reduced) this.t += dt;
+
+    // adaptive quality: after warm-up, if frames are consistently slow, go low-effects once
+    if (!this.lowfx && ++this.frames > 90 && raw < 0.25) {
+      this.perfAcc += raw;
+      if (++this.perfN === 120) {
+        if (this.perfAcc / this.perfN > SLOW_FRAME) this.enableLowFx();
+        this.perfAcc = 0;
+        this.perfN = 0;
+      }
+    }
 
     const p = this.placement();
     const f = 1 - Math.exp(-dt * 2.6);
@@ -259,6 +303,7 @@ export class SceneController {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     document.removeEventListener('visibilitychange', this.onVisibility);
+    this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
     this.ro.disconnect();
     this.main.robot.dispose();
     this.buddy.robot.dispose();

@@ -1,6 +1,5 @@
 import {
   CapsuleGeometry,
-  Color,
   CylinderGeometry,
   Group,
   Mesh,
@@ -155,8 +154,6 @@ export function createRobot(palette: RobotPalette): Robot {
   let blinkAt = 2.5;
   let blinkT = -1;
 
-  const glowColor = new Color(palette.glow);
-  void glowColor;
 
   return {
     group: g,

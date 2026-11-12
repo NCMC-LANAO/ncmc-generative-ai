@@ -38,7 +38,10 @@ export default function Deck() {
     import('../../lib/scene/SceneController')
       .then(({ SceneController }) => {
         if (cancelled) return;
-        ctrl = new SceneController(canvas);
+        ctrl = new SceneController(canvas, () => {
+          setScene(null);
+          setGl(false); // GPU context lost: fall back to the static gradient
+        });
         setScene(ctrl);
       })
       .catch(() => !cancelled && setGl(false));
@@ -88,10 +91,14 @@ export default function Deck() {
     let acc = 0, lock = 0, resetT = 0;
     const onWheel = (e: WheelEvent) => {
       const t = e.target as HTMLElement;
-      if (t.closest('.overview, .slide[data-scroll="true"]')) return;
-      // allow native scroll inside a tall mobile slide
+      if (t.closest('.overview')) return;
+      // A slide taller than the screen scrolls natively; only change slide at its top/bottom edge.
       const slide = t.closest('.slide') as HTMLElement | null;
-      if (slide && slide.scrollHeight > slide.clientHeight + 4) return;
+      if (slide && slide.scrollHeight > slide.clientHeight + 4) {
+        const atBottom = slide.scrollTop + slide.clientHeight >= slide.scrollHeight - 2;
+        const atTop = slide.scrollTop <= 1;
+        if ((e.deltaY > 0 && !atBottom) || (e.deltaY < 0 && !atTop)) return;
+      }
       const now = performance.now();
       if (now < lock) return;
       acc += e.deltaY + e.deltaX;
@@ -142,11 +149,37 @@ export default function Deck() {
     return () => document.removeEventListener('fullscreenchange', on);
   }, []);
 
-  /* ── Overview focus management ── */
+  /* ── Overview dialog: move focus in, trap Tab, return focus on close ── */
   const overviewRef = useRef<HTMLDivElement>(null);
+  const overviewBtnRef = useRef<HTMLButtonElement>(null);
+  const wasOverview = useRef(false);
   useEffect(() => {
-    if (overview) overviewRef.current?.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+    if (overview) {
+      overviewRef.current?.querySelector<HTMLElement>('[aria-current="true"]')?.focus();
+    } else if (wasOverview.current) {
+      overviewBtnRef.current?.focus(); // if a slide was picked, the effect below moves focus onward
+    }
+    wasOverview.current = overview;
   }, [overview]);
+
+  const trapTab = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const items = Array.from(overviewRef.current?.querySelectorAll<HTMLElement>('button') ?? []);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  };
+
+  /* ── Move focus to the new slide so screen readers announce "N of M: title" ── */
+  const slideRefs = useRef<(HTMLElement | null)[]>([]);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    if (overview) return;
+    slideRefs.current[index]?.focus({ preventScroll: true });
+  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="deck" ref={rootRef} data-gl={gl ? 'on' : 'off'}>
@@ -158,10 +191,10 @@ export default function Deck() {
       <header className="chrome-top">
         <div className="brand"><i aria-hidden="true" />{deckMeta.title}</div>
         <div className="tools-bar">
-          <span className="counter" aria-live="polite">
+          <span className="counter">
             <b>{pad(index + 1)}</b> / {pad(slides.length)}
           </span>
-          <button className="icon-btn" aria-pressed={overview} onClick={() => setOverview((v) => !v)} aria-label="Slide overview">
+          <button ref={overviewBtnRef} className="icon-btn" aria-pressed={overview} onClick={() => setOverview((v) => !v)} aria-label="Slide overview">
             <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="5" height="5" rx="1" /><rect x="9.5" y="1.5" width="5" height="5" rx="1" /><rect x="1.5" y="9.5" width="5" height="5" rx="1" /><rect x="9.5" y="9.5" width="5" height="5" rx="1" /></svg>
             <span className="lbl">Overview</span>
           </button>
@@ -176,6 +209,8 @@ export default function Deck() {
         {slides.map((s, i) => (
           <section
             key={s.id}
+            ref={(el) => { slideRefs.current[i] = el; }}
+            tabIndex={-1}
             className="slide"
             data-state={i === index ? 'active' : i < index ? 'past' : 'future'}
             aria-hidden={i !== index}
@@ -207,7 +242,7 @@ export default function Deck() {
         </div>
       </footer>
 
-      <div className="overview" ref={overviewRef} data-open={overview} inert={!overview} role="dialog" aria-label="Slide overview">
+      <div className="overview" ref={overviewRef} data-open={overview} inert={!overview} role="dialog" aria-modal="true" aria-label="Slide overview" onKeyDown={trapTab}>
         <ul className="overview-grid">
           {slides.map((s, i) => (
             <li key={s.id}>
